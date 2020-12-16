@@ -7,4 +7,5 @@ setup(
     author_email='e.roskach@gmail.com',
     version="0.0.1",
     install_requires=["gym", "numpy"],
+    python_requires='>3.6'
 )

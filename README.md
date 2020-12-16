@@ -74,3 +74,8 @@ except IllegalAction
   pass
 
 ```
+
+
+## Notes
+
+Python >= 3.6 recommended
