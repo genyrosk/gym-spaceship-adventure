@@ -298,7 +298,7 @@ class SpaceshipAdventureEnv(gym.Env):
             self.has_used_boost = True
 
         transitions = self.P_mat[self.state][action]
-        idx = categorical_sample([prob := t[0] for t in transitions], self.np_random)
+        idx = categorical_sample([t[0] for t in transitions], self.np_random)
         prob, state_idx, reward, done = transitions[idx]
         self.state = state_idx
         self.last_action = action
