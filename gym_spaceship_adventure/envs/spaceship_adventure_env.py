@@ -137,6 +137,8 @@ class SpaceshipAdventureEnv(gym.Env):
         p=0.7,
         max_boosts=float("inf"),
         action_randomness=0.0,
+        asteroid_reward=-10,
+        goal_reward=10,
     ):
         """
         :param use_default_map
@@ -144,6 +146,8 @@ class SpaceshipAdventureEnv(gym.Env):
         :param p: probability that a tile is empty
         :param max_boosts: maximum number of booosts the spaceship can use
         :param action_randomness: action uncertainty
+        :param asteroid_reward: reward for crashing into an asteroid
+        :param goal_reward: reward for reaching the goal tile
 
         Every environment should be derived from gym.Env and at
         least contain the variables observation_space and action_space
@@ -174,6 +178,8 @@ class SpaceshipAdventureEnv(gym.Env):
         self.max_boosts = max_boosts
         self.boosts_used = 0
         self.cumulative_reward = 0
+        self.asteroid_reward = asteroid_reward
+        self.goal_reward = goal_reward
 
         # Expose API
         self.action_space = spaces.Discrete(self.nA)
@@ -231,10 +237,11 @@ class SpaceshipAdventureEnv(gym.Env):
                 letter = grid_map[r, c]
                 if bytes(letter) == b"G":
                     done = True
-                    reward = 10
+                    reward = goal_reward
                     break
                 elif bytes(letter) == b"A":
                     done = True
+                    reward = asteroid_reward
                     break
 
             return (new_state, reward, done)
