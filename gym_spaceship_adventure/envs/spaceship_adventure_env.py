@@ -7,7 +7,7 @@ from gym.utils import seeding
 import numpy as np
 
 #
-# Possible movements
+# Possible actions
 #
 LEFT = 0
 DOWN = 1
@@ -38,6 +38,8 @@ BOOST_ACTIONS = [
     BOOST_RIGHT,
     BOOST_UP,
 ]
+
+ACTIONS = REGULAR_ACTIONS + BOOST_ACTIONS
 
 #
 # Nomenclature:
@@ -128,11 +130,13 @@ class SpaceshipAdventureEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, use_default_map=True, size=6, p=0.7):
+    def __init__(self, use_default_map=True, size=6, p=0.7, max_boosts=float("inf"), action_randomness=0.0):
         """
         :param use_default_map
         :param size: size of each side of the grid
         :param p: probability that a tile is empty
+        :param max_boosts: maximum number of booosts the spaceship can use
+        :param action_randomness: action uncertainty
 
         Every environment should be derived from gym.Env and at
         least contain the variables observation_space and action_space
@@ -160,7 +164,8 @@ class SpaceshipAdventureEnv(gym.Env):
         self.nA = numActions
         self.nS = numStates
         self.last_action = None  # for rendering
-        self.has_used_boost = False
+        self.max_boosts = max_boosts
+        self.boosts_used = 0
         self.cumulative_reward = 0
 
         # Expose API
@@ -232,11 +237,11 @@ class SpaceshipAdventureEnv(gym.Env):
         # The map layout is deterministic
         # └-> pre-calculate all possible states:
         # ... for each possible location where the ship could be located...
-        for row in [5, 4, 3, 2, 1, 0]:
+        for row in range(numRows):
             for col in range(numCols):
                 state_idx = coords_to_flat_idx(row, col)
                 # ... and for every possible action ...
-                for action in range(self.nA):
+                for action in ACTIONS:
                     # ... there is a known transition
                     #
                     # Note:
@@ -257,9 +262,20 @@ class SpaceshipAdventureEnv(gym.Env):
                         done = True
                         transitions.append((prob, state_idx, reward, done))
                     else:
-                        prob = 1.0
-                        new_state_idx, reward, done = next_state(row, col, action)
-                        transitions.append((prob, new_state_idx, reward, done))
+                        # Boosts are deterministic, while regular actions can have some randomness
+                        if action_randomness and action in REGULAR_ACTIONS:
+                            # breakpoint()
+                            for _action in [(action - 1) % 4, action, (action + 1) % 4]:
+                                if _action == action:
+                                    prob = 1.0 - action_randomness
+                                else:
+                                    prob = action_randomness / 2.0
+                                new_state_idx, reward, done = next_state(row, col, _action)
+                                transitions.append((prob, new_state_idx, reward, done))
+                        else:
+                            prob = 1.0
+                            new_state_idx, reward, done = next_state(row, col, action)
+                            transitions.append((prob, new_state_idx, reward, done))
                     # update the transition matrix
                     P_mat[state_idx][action] = transitions
 
@@ -273,7 +289,7 @@ class SpaceshipAdventureEnv(gym.Env):
 
     def get_possible_actions(self):
         actions = REGULAR_ACTIONS
-        if not self.has_used_boost:
+        if not self.boosts_used > self.max_boosts:
             actions += BOOST_ACTIONS
         return actions
 
@@ -295,7 +311,7 @@ class SpaceshipAdventureEnv(gym.Env):
             raise IllegalAction(f"action {action} is not possible")
 
         if action in BOOST_ACTIONS:
-            self.has_used_boost = True
+            self.boosts_used += 1
 
         transitions = self.P_mat[self.state][action]
         idx = categorical_sample([t[0] for t in transitions], self.np_random)
