@@ -130,7 +130,14 @@ class SpaceshipAdventureEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, use_default_map=True, size=6, p=0.7, max_boosts=float("inf"), action_randomness=0.0):
+    def __init__(
+        self,
+        use_default_map=True,
+        size=6,
+        p=0.7,
+        max_boosts=float("inf"),
+        action_randomness=0.0,
+    ):
         """
         :param use_default_map
         :param size: size of each side of the grid
@@ -178,10 +185,9 @@ class SpaceshipAdventureEnv(gym.Env):
         self.isd = isd
 
         # Transition matrix
-        # P_mat[state_idx][action_idx] = (probability, state_index, reward, done)
+        # P_mat[state][action_idx] = (probability, state_index, reward, done)
         P_mat = {
-            state_idx: {action: [] for action in range(self.nA)}
-            for state_idx in range(self.nS)
+            state: {action: [] for action in range(self.nA)} for state in range(self.nS)
         }
         self.P_mat = P_mat
 
@@ -216,12 +222,12 @@ class SpaceshipAdventureEnv(gym.Env):
                     path.append((row, col))
 
             # for given path: get new state, reward and done
-            new_state_idx = coords_to_flat_idx(prev_row, prev_col)
+            new_state = coords_to_flat_idx(prev_row, prev_col)
             reward = -1
             done = False
             for square in path:
                 r, c = square
-                new_state_idx = coords_to_flat_idx(r, c)
+                new_state = coords_to_flat_idx(r, c)
                 letter = grid_map[r, c]
                 if bytes(letter) == b"G":
                     done = True
@@ -231,7 +237,7 @@ class SpaceshipAdventureEnv(gym.Env):
                     done = True
                     break
 
-            return (new_state_idx, reward, done)
+            return (new_state, reward, done)
 
         #
         # The map layout is deterministic
@@ -239,7 +245,7 @@ class SpaceshipAdventureEnv(gym.Env):
         # ... for each possible location where the ship could be located...
         for row in range(numRows):
             for col in range(numCols):
-                state_idx = coords_to_flat_idx(row, col)
+                state = coords_to_flat_idx(row, col)
                 # ... and for every possible action ...
                 for action in ACTIONS:
                     # ... there is a known transition
@@ -260,7 +266,7 @@ class SpaceshipAdventureEnv(gym.Env):
                         prob = 1.0
                         reward = 0
                         done = True
-                        transitions.append((prob, state_idx, reward, done))
+                        transitions.append((prob, state, reward, done))
                     else:
                         # Boosts are deterministic, while regular actions can have some randomness
                         if action_randomness and action in REGULAR_ACTIONS:
@@ -270,14 +276,14 @@ class SpaceshipAdventureEnv(gym.Env):
                                     prob = 1.0 - action_randomness
                                 else:
                                     prob = action_randomness / 2.0
-                                new_state_idx, reward, done = next_state(row, col, _action)
-                                transitions.append((prob, new_state_idx, reward, done))
+                                new_state, reward, done = next_state(row, col, _action)
+                                transitions.append((prob, new_state, reward, done))
                         else:
                             prob = 1.0
-                            new_state_idx, reward, done = next_state(row, col, action)
-                            transitions.append((prob, new_state_idx, reward, done))
+                            new_state, reward, done = next_state(row, col, action)
+                            transitions.append((prob, new_state, reward, done))
                     # update the transition matrix
-                    P_mat[state_idx][action] = transitions
+                    P_mat[state][action] = transitions
 
         # set the seed and the initial state
         self.seed()
@@ -315,8 +321,8 @@ class SpaceshipAdventureEnv(gym.Env):
 
         transitions = self.P_mat[self.state][action]
         idx = categorical_sample([t[0] for t in transitions], self.np_random)
-        prob, state_idx, reward, done = transitions[idx]
-        self.state = state_idx
+        prob, state, reward, done = transitions[idx]
+        self.state = state
         self.last_action = action
         self.cumulative_reward += reward
         info = {"prob": prob}
