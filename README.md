@@ -46,7 +46,7 @@ import gym
 env = gym.make("spaceship-adventure-v0")
 
 # Randomly generated map of a certain size and probability of empty tile `p`
-env = gym.make("spaceship-adventure-v0", map_name="6x6", size=6, p=0.7)
+env = gym.make("spaceship-adventure-v0", map_name=None, size=6, p=0.7)
 
 # get available actions
 possible_actions = env.get_possible_actions()
