@@ -12,17 +12,18 @@ The space is described using a grid like the following:
 ```
 
   AA-A-G
-  --A---         (G: goal tile)
-  ----AA         (-: empty space, safe)
-  --A--A         (A: asteroid, collide to your doom)
-  A--A--         (S: starting point, safe)
-  S-----
+  --A--x         (G: goal tile)
+  -x--AA         (-: empty space, safe)
+  --A--A         (x : pseudo-reward tile, safe)
+  A--A--         (A: asteroid, collide to your doom)
+  S-----         (S: starting point, safe)
 
 ```
 
 The episode ends when you reach the goal or collide with an asteroid.
-You receive a reward of -1 for each movement, 10 if you reach the goal, and zero if you collide.
+By default, you receive a reward of -1 for each movement, 1 for reaching a pseudo-reward, 10 if you reach the goal, and -10 if you collide.
 
+Parametrization:
 
 # Installation
 
@@ -41,10 +42,10 @@ Note: Generated maps are guaranteed to have a solution from the starting point t
 import gym
 
 # Default map
-env = gym.make('spaceship-adventure-v0')
+env = gym.make("spaceship-adventure-v0")
 
 # Randomly generated map of a certain size and probability of empty tile `p`
-env = gym.make('spaceship-adventure-v0', use_default_map=False, size=6, p=0.7)
+env = gym.make("spaceship-adventure-v0", map_name="6x6", size=6, p=0.7)
 
 # get available actions
 possible_actions = env.get_possible_actions()
@@ -59,6 +60,53 @@ env.render()
 env.reset()
 
 ```
+
+
+# Parametrization
+
+Use a pre-defined map:
+
+```python
+
+env = gym.make(
+  "spaceship-adventure-v0",
+  map_name="6x6",
+)
+
+```
+
+Generate a new map every time:
+
+```python
+
+env = gym.make(
+  "spaceship-adventure-v0",
+  map_name=None, # important if you want to generate a new map
+)
+
+```
+
+The simulation can be highly customized.
+
+```python
+
+env = gym.make(
+  "spaceship-adventure-v0",
+  map_name=None, # important if you want to generate a new map
+  size=10,
+  p=0.7,
+  max_boosts=5,
+  action_randomness=0.2,
+  movement_reward=-1,
+  asteroid_reward=-10,
+  goal_reward=10,
+  num_pseudo_rewards=0,
+  pseudo_reward=5,
+  only_optimal_pseudo_rewards=False,
+)
+
+```
+
 
 ## Bonus
 
