@@ -79,6 +79,8 @@ def generate_random_map(size=6, p=0.7, num_pseudo_rewards=0, only_optimal_pseudo
     """Generates a random valid map (one that has a path from start to goal)
     :param size: size of each side of the grid
     :param p: probability that a tile is empty
+    :param num_pseudo_rewards: number of tiles to contain pseudo-rewards
+    :param only_optimal_pseudo_rewards: put pseudo rewards only along known path to Goal tile
     """
     valid = False
 
