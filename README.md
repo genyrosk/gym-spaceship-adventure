@@ -23,7 +23,8 @@ The space is described using a grid like the following:
 The episode ends when you reach the goal or collide with an asteroid.
 By default, you receive a reward of -1 for each movement, 1 for reaching a pseudo-reward, 10 if you reach the goal, and -10 if you collide.
 
-Parametrization:
+To improve training and exploration you can configure a pseudo-reward policy (c.f. [Policy invariance under reward transformations](https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf) by Ng, Harada and Russell).
+
 
 # Installation
 
