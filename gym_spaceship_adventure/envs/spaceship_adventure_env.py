@@ -283,7 +283,7 @@ class SpaceshipAdventureEnv(gym.Env):
                 new_state = coords_to_flat_idx(r, c)
                 letter = grid_map[r, c]
                 if bytes(letter) == b"x":
-                    reward = pseudo_reward - movement_reward
+                    reward += pseudo_reward
                 if bytes(letter) == b"G":
                     done = True
                     reward = goal_reward
