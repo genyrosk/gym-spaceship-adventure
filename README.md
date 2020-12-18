@@ -4,7 +4,7 @@ A cool variation on the [frozen-lake](https://gym.openai.com/envs/FrozenLake-v0/
 
 The agent controls the movement of a spaceship in a grid world.
 Some tiles of the grid are navigable, and others lead to the agent colliding with an asteroid 💥.
-Additionally, the agent is awarded a one-time boost ⚡ that can move it accross 4 tiles in one go.
+Additionally, the agent can activate a boost ⚡ and move accross 4 tiles in one go.
 The agent is rewarded for finding a navigable path to a goal tile.
 
 The space is described using a grid like the following:
