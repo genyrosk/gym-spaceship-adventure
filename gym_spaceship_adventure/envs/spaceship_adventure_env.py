@@ -50,7 +50,7 @@ ACTIONS = REGULAR_ACTIONS + BOOST_ACTIONS
 # 'x' = pseudo-reward tile
 #
 MAPS = {
-    "6x6" : [
+    "6x6": [
         "AA-A-G",
         "--A---",
         "----AA",
@@ -75,7 +75,9 @@ def categorical_sample(category_probs, np_random):
     return (cumsum_probs_n > np_random.rand()).argmax()
 
 
-def generate_random_map(size=6, p=0.7, num_pseudo_rewards=0, only_optimal_pseudo_rewards=True):
+def generate_random_map(
+    size=6, p=0.7, num_pseudo_rewards=0, only_optimal_pseudo_rewards=True
+):
     """Generates a random valid map (one that has a path from start to goal)
     :param size: size of each side of the grid
     :param p: probability that a tile is empty
@@ -107,7 +109,9 @@ def generate_random_map(size=6, p=0.7, num_pseudo_rewards=0, only_optimal_pseudo
                         # add pseudo-rewards
                         if num_pseudo_rewards and only_optimal_pseudo_rewards:
                             pseudo_reward_idxs = np.random.choice(
-                                len(path), num_pseudo_rewards, replace=False,
+                                len(path),
+                                num_pseudo_rewards,
+                                replace=False,
                             )
                             for idx in pseudo_reward_idxs:
                                 pr_row, pr_col = path[idx]
