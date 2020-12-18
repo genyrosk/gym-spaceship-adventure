@@ -47,15 +47,18 @@ ACTIONS = REGULAR_ACTIONS + BOOST_ACTIONS
 # 'G' = goal point
 # 'A' = asteroid
 # '-' = empty space
+# 'x' = pseudo-reward tile
 #
-DEFAULT_MAP = [
-    "AA-A-G",
-    "--A---",
-    "----AA",
-    "--A--A",
-    "A--A--",
-    "S-----",
-]
+MAPS = {
+    "6x6" : [
+        "AA-A-G",
+        "--A---",
+        "----AA",
+        "--A--A",
+        "A--A--",
+        "S-----",
+    ],
+}
 
 
 class IllegalAction(Exception):
@@ -72,7 +75,7 @@ def categorical_sample(category_probs, np_random):
     return (cumsum_probs_n > np_random.rand()).argmax()
 
 
-def generate_random_map(size=6, p=0.7):
+def generate_random_map(size=6, p=0.7, num_pseudo_rewards=0, only_optimal_pseudo_rewards=True):
     """Generates a random valid map (one that has a path from start to goal)
     :param size: size of each side of the grid
     :param p: probability that a tile is empty
@@ -81,9 +84,10 @@ def generate_random_map(size=6, p=0.7):
 
     # DFS to check that it's a valid path.
     def is_valid(res):
-        frontier, discovered = [], set()
+        path, frontier, discovered = [], [], set()
         start_row, start_col = (size - 1, 0)
-        frontier.append((start_row, start_col))  # frontier tracks the path we're taking
+        frontier.append((start_row, start_col))
+        # frontier[] tracks the path from the earliest fully discovered tile
         # if frontier[] becomes empty then we have exhausted all valid paths
         while frontier:
             r, c = frontier.pop()
@@ -95,10 +99,22 @@ def generate_random_map(size=6, p=0.7):
                     c_new = c + dc
                     if r_new < 0 or r_new >= size or c_new < 0 or c_new >= size:
                         continue
+                    if res[r_new][c_new] == "S":
+                        continue
                     if res[r_new][c_new] == "G":
+                        # add pseudo-rewards
+                        if num_pseudo_rewards and only_optimal_pseudo_rewards:
+                            pseudo_reward_idxs = np.random.choice(
+                                len(path), num_pseudo_rewards, replace=False,
+                            )
+                            for idx in pseudo_reward_idxs:
+                                pr_row, pr_col = path[idx]
+                                res[pr_row][pr_col] = "x"
                         return True
                     if res[r_new][c_new] != "A":
                         frontier.append((r_new, c_new))
+                        if res[r][c] != "S":
+                            path.append((r, c))
         return False
 
     while not valid:
@@ -107,6 +123,18 @@ def generate_random_map(size=6, p=0.7):
         result[-1][0] = "S"  # set starting point
         result[0][-1] = "G"  # set goal point
         valid = is_valid(result)
+
+    # random rewards accross the map
+    if num_pseudo_rewards and not only_optimal_pseudo_rewards:
+        idxs = np.isin(result, ["-"])
+        idxs_probs = idxs.reshape(-1) / idxs.sum()
+        pseudo_reward_idxs = np.random.choice(
+            len(idxs_probs), num_pseudo_rewards, p=idxs_probs, replace=False
+        )
+        for idx in pseudo_reward_idxs:
+            row, col = idx // size, idx % size
+            result[row][col] = "x"
+
     return ["".join(x) for x in result]
 
 
@@ -114,13 +142,14 @@ class SpaceshipAdventureEnv(gym.Env):
     """
     The surface is grid_mapribed using a grid like the following
         AA-A-G
-        --A---
-        ----AA
+        --A-x-
+        -x--AA
         --A--A
         A--A--
         S-----
     S : starting point, safe
     - : empty space, safe
+    x : pseudo-reward tile, safe
     A : asteroid, colliding means game over
     G : goal
     The episode ends when you reach the goal or collide with an asteroid.
@@ -132,22 +161,32 @@ class SpaceshipAdventureEnv(gym.Env):
 
     def __init__(
         self,
-        use_default_map=True,
+        grid_map=None,
+        map_name="6x6",
         size=6,
         p=0.7,
         max_boosts=float("inf"),
         action_randomness=0.0,
+        movement_reward=-1,
         asteroid_reward=-10,
         goal_reward=10,
+        num_pseudo_rewards=0,
+        pseudo_reward=5,
+        only_optimal_pseudo_rewards=True,
     ):
         """
-        :param use_default_map
+        :param grid_map: custom map
+        :param map_name: name of a pre-defined map
         :param size: size of each side of the grid
         :param p: probability that a tile is empty
         :param max_boosts: maximum number of booosts the spaceship can use
         :param action_randomness: action uncertainty
+        :param movement_reward: reward for every step in an episode
         :param asteroid_reward: reward for crashing into an asteroid
         :param goal_reward: reward for reaching the goal tile
+        :param num_pseudo_rewards: number of pseudo reward tiles to be placed on the map
+        :param pseudo_reward: reward associated with a pseudo reward tile
+        :param only_optimal_pseudo_rewards: place pseudo reward tiles only along the optimal path
 
         Every environment should be derived from gym.Env and at
         least contain the variables observation_space and action_space
@@ -163,10 +202,15 @@ class SpaceshipAdventureEnv(gym.Env):
             P[s][a] == [(probability, nextstate, reward, done), ...]
         (**) list or array of length nS
         """
-        if use_default_map:
-            grid_map = DEFAULT_MAP
-        else:
-            grid_map = generate_random_map(size=size, p=p)
+        if grid_map is None and map_name is None:
+            grid_map = generate_random_map(
+                size=size,
+                p=p,
+                num_pseudo_rewards=num_pseudo_rewards,
+                only_optimal_pseudo_rewards=only_optimal_pseudo_rewards,
+            )
+        elif grid_map is None:
+            grid_map = MAPS[map_name]
 
         self.grid_map = grid_map = np.asarray(grid_map, dtype="c")
         self.nrow, self.ncol = numRows, numCols = grid_map.shape
@@ -178,8 +222,11 @@ class SpaceshipAdventureEnv(gym.Env):
         self.max_boosts = max_boosts
         self.boosts_used = 0
         self.cumulative_reward = 0
+        self.movement_reward = movement_reward
         self.asteroid_reward = asteroid_reward
         self.goal_reward = goal_reward
+        self.pseudo_reward = pseudo_reward
+        self.num_pseudo_rewards = num_pseudo_rewards
 
         # Expose API
         self.action_space = spaces.Discrete(self.nA)
@@ -187,7 +234,7 @@ class SpaceshipAdventureEnv(gym.Env):
 
         # Initial state distribution
         isd = np.array(grid_map == b"S").astype("float64").ravel()
-        isd /= isd.sum()
+        isd = isd / isd.sum()
         self.isd = isd
 
         # Transition matrix
@@ -229,12 +276,14 @@ class SpaceshipAdventureEnv(gym.Env):
 
             # for given path: get new state, reward and done
             new_state = coords_to_flat_idx(prev_row, prev_col)
-            reward = -1
+            reward = movement_reward
             done = False
             for square in path:
                 r, c = square
                 new_state = coords_to_flat_idx(r, c)
                 letter = grid_map[r, c]
+                if bytes(letter) == b"x":
+                    reward = pseudo_reward - movement_reward
                 if bytes(letter) == b"G":
                     done = True
                     reward = goal_reward
